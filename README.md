@@ -1,6 +1,6 @@
 # Unknown Bhaarath — Autonomous Instagram Facts Agent
 
-Daily 3 posts to @unknownbhaarath. Runs on GitHub Actions (cloud) — laptop off, phone alerts via Telegram. ~₹0 cost.
+Daily 3 posts to @unknownbhaarath. Runs on GitHub Actions (cloud) — laptop off, phone alerts via Telegram. ~₹0 cost.(Claude API used here. Swap with Gemini API for $0.00 Cost)
 
 ## Architecture
 ```
