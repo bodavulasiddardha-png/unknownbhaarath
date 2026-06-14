@@ -1,0 +1,69 @@
+name: Unknown Bhaarath Auto Post
+
+on:
+  schedule:
+    - cron: '30 2 * * *'   # 8:00 AM IST → morning
+    - cron: '30 7 * * *'   # 1:00 PM IST → afternoon
+    - cron: '30 12 * * *'  # 6:00 PM IST → evening
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Slot (morning/afternoon/evening)'
+        required: true
+        default: 'morning'
+
+permissions:
+  contents: write   # allows committing posted_history.json back
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Determine slot
+        id: slot
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "slot=${{ github.event.inputs.slot }}" >> $GITHUB_OUTPUT
+          else
+            # IST = UTC+5:30. Use cron time to determine slot reliably.
+            CRON_HOUR=$(date -u +%H)
+            if [ "$CRON_HOUR" = "02" ]; then echo "slot=morning" >> $GITHUB_OUTPUT;
+            elif [ "$CRON_HOUR" = "07" ]; then echo "slot=afternoon" >> $GITHUB_OUTPUT;
+            else echo "slot=evening" >> $GITHUB_OUTPUT; fi
+          fi
+
+      - name: Run bot
+        env:
+          SLOT: ${{ steps.slot.outputs.slot }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          IG_API_BASE: ${{ secrets.IG_API_BASE }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: npm run post
+
+      - name: Save post history
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add posted_history.json || true
+          git commit -m "Update post history [skip ci]" || echo "nothing to commit"
+          git push || echo "nothing to push"
