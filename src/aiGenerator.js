@@ -157,6 +157,7 @@ Rules:
 - Genuinely surprising to most Indians
 - No opinions, no predictions
 - Return ONLY valid JSON (no markdown):
+-Must include at least one specific year, number, or verifiable name - reject vague claims
 {"fact": "one sentence with number/date/name", "source": "source name"}`,
     }],
     model: 'llama-3.3-70b-versatile',
@@ -337,7 +338,7 @@ export async function generateSlide(category, topic, articles) {
     let confidence = 85, verdict = 'pass';
     try { const v = safeJSON(vRes.content[0].text); confidence = v.confidence||85; verdict = v.verdict||'pass'; } catch {}
 
-    if (verdict === 'fail' || confidence < 85) {
+    if (verdict === 'fail' || confidence < 87) {
       console.warn(`   [Verify] conf ${confidence} — retrying...`);
       const { fact: f2, source: s2 } = await groqUnknownFact(category);
       const slide = normalizeSlide(await claudeStorytellingFact(category, f2, s2), category, topic);
