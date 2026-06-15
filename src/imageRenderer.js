@@ -35,9 +35,19 @@ export async function renderSlide(slide, index, total) {
 
 export async function renderAll(slides) {
   const buffers = [];
+  // Render each slide independently. If one slide fails, skip it instead of
+  // killing the whole post — as long as 2+ slides survive, the carousel posts.
   for (let i = 0; i < slides.length; i++) {
-    const buf = await renderSlide(slides[i], i, slides.length);
-    buffers.push(buf);
+    try {
+      const buf = await renderSlide(slides[i], i, slides.length);
+      if (buf && buf.length > 1000) buffers.push(buf);
+      else console.warn(`[Render] slide ${i} produced empty buffer — skipping`);
+    } catch (e) {
+      console.warn(`[Render] slide ${i} failed: ${e.message} — skipping`);
+    }
+  }
+  if (buffers.length < 2) {
+    throw new Error(`Only ${buffers.length} slide(s) rendered — need at least 2 for a carousel`);
   }
   return buffers;
 }
