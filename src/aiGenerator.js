@@ -1,9 +1,9 @@
 import Groq from 'groq-sdk';
 import Anthropic from '@anthropic-ai/sdk';
- 
+
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
- 
+
 // ── Retry helper ──────────────────────────────────────────
 async function withRetry(fn, label, tries = 3) {
   let last;
@@ -17,7 +17,7 @@ async function withRetry(fn, label, tries = 3) {
   }
   throw last;
 }
- 
+
 // ── Safe JSON parse ───────────────────────────────────────
 function safeJSON(raw) {
   const clean = (raw || '').replace(/```json/g,'').replace(/```/g,'').trim();
@@ -25,24 +25,24 @@ function safeJSON(raw) {
   if (s === -1 || e === -1) throw new Error('No JSON found in: ' + clean.substring(0,80));
   return JSON.parse(clean.substring(s, e+1));
 }
- 
- 
+
+
 const BANNED_FILLER = [
   'dominant', 'dominance', 'resilience', 'remarkable', 'incredible', 'landmark year',
   'game changer', 'game-changing', 'strong performance', 'rain-hit conditions',
   'showcased', 'dramatically', 'accelerated', 'exponential growth', 'powerful',
   'massive boost', 'historic moment', 'set the tone', 'major step'
 ];
- 
+
 function hasConcreteDetail(text = '') {
   return /\d|\b[A-Z][a-z]+\b/.test(text);
 }
- 
+
 function containsFiller(text = '') {
   const lower = String(text).toLowerCase();
   return BANNED_FILLER.some(w => lower.includes(w));
 }
- 
+
 function cleanText(text = '') {
   let out = String(text || '').trim();
   for (const word of BANNED_FILLER) {
@@ -51,8 +51,8 @@ function cleanText(text = '') {
   }
   return out.replace(/^[,\-–: ]+|[,\-–: ]+$/g, '').trim();
 }
- 
- 
+
+
 function hasUnsafeIndiaSalary(text = '', category = '') {
   const t = String(text || '');
   const isIndiaJobs = ['HYDERABAD JOBS', 'JOBS', 'CAREER'].includes(category);
@@ -60,21 +60,21 @@ function hasUnsafeIndiaSalary(text = '', category = '') {
   // Blocks US salary hallucinations like $140K/year in India/Hyderabad posts.
   return /\$\s?\d{2,3}\s?k\b|\$\s?\d{2,3},?\d{3}\b/i.test(t);
 }
- 
+
 function hasUnsupportedMegaStat(text = '') {
   const t = String(text || '').toLowerCase();
   // Common model-invented broad claims unless source explicitly provides them.
   return /\b\d{2,3}%\s+(skills?|talent|salary|job|hiring)\b/.test(t) &&
          /(shortage|gap|crisis|demand|growth|highest|dominates)/i.test(t);
 }
- 
+
 function validateSlide(slide, category) {
   const allText = [
     slide.headline, slide.highlight, slide.stat, slide.statLabel, slide.source,
     ...(slide.facts || []), ...(slide.full_facts || []),
     ...(slide.stats || []).flatMap(s => [s.num, s.label])
   ].filter(Boolean).join(' ');
- 
+
   // Reject AI refusal / mismatch responses so they fall back to backup facts
   // instead of being posted as real slides.
   const REFUSAL_PHRASES = [
@@ -88,7 +88,7 @@ function validateSlide(slide, category) {
   if (REFUSAL_PHRASES.some(p => lowered.includes(p))) {
     throw new Error(`Refusal/mismatch detected in ${category} — falling back`);
   }
- 
+
   if (hasUnsafeIndiaSalary(allText, category)) {
     throw new Error(`Rejected unsafe India salary claim in ${category}`);
   }
@@ -97,7 +97,7 @@ function validateSlide(slide, category) {
   }
   return slide;
 }
- 
+
 function fallbackStatsFromFacts(facts = []) {
   return facts.slice(0, 4).map(f => {
     const m = String(f).match(/(\d+(?:\.\d+)?%?|₹\s?\d+(?:\.\d+)?\s?(?:LPA|crore|lakh)?|\$\s?\d+(?:\.\d+)?\s?(?:B|M|T)?|\d+\/\d+|\d+\*)/i);
@@ -106,40 +106,40 @@ function fallbackStatsFromFacts(facts = []) {
     return { num, label: label || 'Key Fact' };
   });
 }
- 
+
 function normalizeSlide(slide, category, topic) {
   slide.category = slide.category || category;
   slide.type = slide.type || 'news';
- 
+
   slide.facts = (slide.facts || [])
     .map(cleanText)
     .filter(f => f.length >= 8 && hasConcreteDetail(f) && !containsFiller(f))
     .slice(0, 4);
- 
+
   slide.full_facts = (slide.full_facts || [])
     .map(cleanText)
     .filter(f => f.length >= 20 && hasConcreteDetail(f) && !containsFiller(f))
     .slice(0, 4);
- 
+
   slide.stats = (slide.stats || [])
     .filter(s => s && String(s.num || '').trim() && String(s.label || '').trim())
     .map(s => ({ num: String(s.num).trim(), label: cleanText(s.label).split(' ').slice(0, 4).join(' ') }))
     .slice(0, 4);
- 
+
   if (slide.stats.length < slide.facts.length) {
     const auto = fallbackStatsFromFacts(slide.facts);
     slide.stats = slide.facts.map((_, i) => slide.stats[i] || auto[i] || { num: '', label: 'Key Fact' });
   }
- 
+
   if (!slide.full_facts.length) slide.full_facts = slide.facts.slice(0, 3);
   if (!slide.stat && slide.stats[0]?.num) slide.stat = slide.stats[0].num;
   if (!slide.statLabel && slide.stats[0]?.label) slide.statLabel = slide.stats[0].label;
   if (!slide.source || containsFiller(slide.source)) slide.source = 'Verified source';
   if (!slide.headline || containsFiller(slide.headline)) slide.headline = String(topic || category).split(' ').slice(0, 6).join(' ');
- 
+
   return slide;
 }
- 
+
 // ── Unknown fact topics per category ─────────────────────
 const UNKNOWN_TOPICS = {
   'INDIA':          ['unknown ancient India civilization achievement', 'India forgotten history independence movement', 'India ancient science mathematics astronomy'],
@@ -155,17 +155,17 @@ const UNKNOWN_TOPICS = {
   'STUDY ABROAD':   ['Indian students abroad achievement contribution', 'Indian students global education destinations', 'Indians global leadership achievement unknown'],
   'CRICKET':        ['India cricket world record unknown achievement', 'India cricket history unknown milestone 1932', 'Indian cricketer forgotten record achievement'],
 };
- 
+
 // ── Groq: unknown historical fact ────────────────────────
 async function groqUnknownFact(category) {
   const topics = UNKNOWN_TOPICS[category] || UNKNOWN_TOPICS['INDIA'];
   const topic = topics[Math.floor(Math.random() * topics.length)];
- 
+
   const res = await groq.chat.completions.create({
     messages: [{
       role: 'user',
       content: `Generate 1 fascinating lesser-known fact about: ${topic}
- 
+
 Rules:
 - Historically accurate with specific numbers, dates, or names
 - Genuinely surprising to most Indians
@@ -177,17 +177,17 @@ Rules:
     temperature: 0.7,
     max_tokens: 200,
   });
- 
+
   const parsed = safeJSON(res.choices[0].message.content);
   if (!parsed.fact || parsed.fact.length < 10) throw new Error('Groq fact too short');
   if (!parsed.source) parsed.source = 'Historical records';
   return parsed;
 }
- 
+
 // ── Claude: pick best article from candidates ─────────────
 async function claudePickBest(category, topic, articles) {
   if (articles.length === 1) return articles[0];
- 
+
   const list = articles.map((a, i) => `${i}: ${a.title} | Source: ${a.source || 'unknown'} | URL: ${a.link || ''}`).join('\n');
   const res = await withRetry(() => claude.messages.create({
     model: 'claude-haiku-4-5',
@@ -204,11 +204,11 @@ Rules:
 Return ONLY the index number (0, 1, 2...):`,
     }],
   }), 'claudePickBest');
- 
+
   const idx = parseInt((res.content[0].text || '0').trim());
   return articles[isNaN(idx) || idx >= articles.length ? 0 : idx];
 }
- 
+
 // ── Claude: rewrite news as carousel ─────────────────────
 async function claudeRewriteNews(category, topic, title, content, sourceName = 'Unknown', sourceUrl = '') {
   const res = await withRetry(() => claude.messages.create({
@@ -222,7 +222,7 @@ Source title: ${title}
 Source name: ${sourceName}
 Source URL: ${sourceUrl}
 Content: ${content}
- 
+
 Create a premium Instagram infographic slide with HARD FACTS only. Return ONLY valid JSON:
 {
   "headline": "MAX 6 words; no hype words",
@@ -249,32 +249,32 @@ Create a premium Instagram infographic slide with HARD FACTS only. Return ONLY v
   "source": "real short source name, not generic",
   "type": "news"
 }
- 
+
 STRICT QUALITY RULES:
 - Never invent numbers, names, scores, dates, salary ranges, awards or player-of-match details.
 - If exact data is missing, omit that card instead of guessing.
 - Avoid AI filler words: dominant, resilience, remarkable, incredible, landmark year, game changer, rain-hit conditions, strong performance, showcased, dramatically, exponential growth.
 - Every facts[] item must include a measurable detail: number, name, date, rank, score, percentage, salary or location.
 - stats[i].num + stats[i].label = the big right-side card; it must be specific, not generic.
- 
- 
+
+
 SOURCE + SALARY SAFETY RULES:
 - For HYDERABAD JOBS / JOBS / CAREER, never use US-dollar salaries for India posts.
 - India salary figures must be in INR/₹ and must be stated in the source content. If not present, use role/skill facts instead.
 - Do not trust salary numbers from coaching/training websites or generic blogs.
 - Never create broad claims like "82% skills shortage" unless that exact number exists in source content.
 - If the source is weak or unclear, produce a conservative slide using only the article's title/location/date facts.
- 
+
 CATEGORY RULES:
 - CRICKET: Prefer team scores, chase overs, top scorer, best bowler, Player of the Match, venue, series/match number. Do not write mood words.
 - JOBS/CAREER: Prefer salary ranges, hiring counts, role names, required skills, city/company names. Avoid vague claims like highest-paid unless source states it.
 - STUDY ABROAD: Prefer student counts, destination countries, visa figures, cost ranges, official years. Avoid unsupported predictions like landmark year.`,
     }],
   }), 'claudeRewriteNews');
- 
+
   return safeJSON(res.content[0].text);
 }
- 
+
 // ── Claude: storytelling for unknown facts ────────────────
 async function claudeStorytellingFact(category, fact, source) {
   const res = await withRetry(() => claude.messages.create({
@@ -286,7 +286,7 @@ async function claudeStorytellingFact(category, fact, source) {
 Category: ${category}
 Core fact: ${fact}
 Source: ${source}
- 
+
 Create a premium "did you know" infographic with hard facts, numbers, names and dates only. Avoid filler/hype words. Return ONLY valid JSON:
 {
   "headline": "mind-blowing headline MAX 6 words — make people stop scrolling",
@@ -313,17 +313,17 @@ Create a premium "did you know" infographic with hard facts, numbers, names and 
   "source": "${source}",
   "type": "unknown"
 }
- 
+
 STRICT RULES:
 - Every card must contain a number, date, name, place, rank or measurable detail.
 - Never invent facts. If context is missing, keep it shorter.
 - Do not use filler words: dominant, resilience, landmark year, game changer, remarkable, incredible, strong performance.`,
     }],
   }), 'claudeStorytelling');
- 
+
   return safeJSON(res.content[0].text);
 }
- 
+
 // ── Main export ───────────────────────────────────────────
 export async function generateSlide(category, topic, articles) {
   // NEWS path — best-of-N selection then rewrite
@@ -338,11 +338,11 @@ export async function generateSlide(category, topic, articles) {
       console.warn(`   [Claude news] failed: ${e.message}`);
     }
   }
- 
+
   // UNKNOWN FACT path — Groq + Claude verify + Claude story
   try {
     const { fact, source } = await groqUnknownFact(category);
- 
+
     // Claude accuracy check
     const vRes = await claude.messages.create({
       model: 'claude-haiku-4-5', max_tokens: 80,
@@ -350,7 +350,7 @@ export async function generateSlide(category, topic, articles) {
     });
     let confidence = 85, verdict = 'pass';
     try { const v = safeJSON(vRes.content[0].text); confidence = v.confidence||85; verdict = v.verdict||'pass'; } catch {}
- 
+
     if (verdict === 'fail' || confidence < 85) {
       console.warn(`   [Verify] conf ${confidence} — retrying...`);
       const { fact: f2, source: s2 } = await groqUnknownFact(category);
@@ -359,7 +359,7 @@ export async function generateSlide(category, topic, articles) {
       console.log(`   ✓ ${category} [unknown fact retry]: ${slide.headline}`);
       return slide;
     }
- 
+
     const slide = validateSlide(normalizeSlide(await claudeStorytellingFact(category, fact, source), category, topic), category);
     slide.engine = 'groq+claude'; slide.confidence = confidence;
     console.log(`   ✓ ${category} [unknown fact conf ${confidence}]: ${slide.headline}`);
@@ -367,13 +367,13 @@ export async function generateSlide(category, topic, articles) {
   } catch (e) {
     console.warn(`   [Groq+Claude] failed: ${e.message}`);
   }
- 
+
   // HARDCODED BACKUP
   console.warn(`   [Backup] ${category}`);
   return backupFact(category);
 }
- 
- 
+
+
 function backupFact(category) {
   const backups = {
     'INDIA': [
@@ -569,7 +569,7 @@ function backupFact(category) {
       }
     ]
   };
- 
+
   const list = backups[category] || backups['INDIA'];
   const picked = list[Math.floor(Math.random() * list.length)];
   return validateSlide(normalizeSlide({ ...picked, category, engine: 'backup', type: 'backup' }, category, category), category);
