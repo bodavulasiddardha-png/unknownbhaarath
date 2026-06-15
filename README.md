@@ -1,91 +1,142 @@
-# Unknown Bhaarath — Autonomous Instagram Facts Agent
+# 🇮🇳 Unknown Bhaarath — Autonomous Instagram Facts Agent
 
-Daily 3 posts to @unknownbhaarath. Runs on GitHub Actions (cloud) — laptop off, phone alerts via Telegram. ~₹0 cost.
+> A fully autonomous, zero-touch content pipeline that researches, fact-checks, designs, and publishes 3 Instagram carousel posts daily to [@unknownbhaarath](https://instagram.com/unknownbhaarath) — running entirely on free cloud infrastructure with phone alerts via Telegram.
+
+**No servers. No laptop. No manual work.** Once deployed, it runs itself on a schedule, recovers from failures, and only pings me when something needs attention.
+
+---
+
+## Why I built this
+
+I wanted to prove I could take an idea from architecture to a **production-grade, self-healing agentic system** — not just a script that works once on my machine. This project demonstrates end-to-end ownership: API integration, multi-model AI orchestration, content safety, error recovery, and cloud automation. I architect and debug; I use AI assistants for implementation, then audit the output to production standard (see *Engineering Rigor* below).
+
+---
 
 ## Architecture
+
 ```
-GitHub Actions (cron, cloud)
+GitHub Actions (cron, cloud — runs even when my laptop is off)
   ↓
-Per slide — 3-layer content:
-  Layer 1: RSS feeds (real news) → Claude Haiku rewrite
-  Layer 2: Tavily search (web) → Claude Haiku rewrite
-  Layer 3: Groq (unknown fact) → Claude verify → Claude storytelling
-  Layer 4: Hardcoded backup (last resort)
+Per slide — 4-layer content fallback chain:
+  Layer 1: RSS feeds (real news)      → Claude Haiku rewrite + validate
+  Layer 2: Tavily web search          → Claude Haiku rewrite + validate
+  Layer 3: Groq (Llama 3.3) unknown   → Claude verify (confidence score)
+                                        → Claude storytelling rewrite
+  Layer 4: Hardcoded backup facts     → last resort, never fails
   ↓
-Puppeteer → Premium HTML/CSS slide (1080×1080)
+Content safety gate (rejects AI refusals, unsafe claims, off-topic articles)
   ↓
-Cloudinary → Image hosting
+Puppeteer → premium HTML/CSS slide render (1080×1080, per-slide isolation)
   ↓
-Instagram Graph API → Carousel post
+Cloudinary → image hosting
   ↓
-Telegram → Phone alert (📰[news] / 🔮[unknown fact] / ⚠️[backup])
+Instagram Graph API → carousel post (with retry + rate-limit handling)
+  ↓
+Telegram → phone alert  📰 [news] / 🔮 [unknown fact] / ⚠️ [backup]
 ```
+
+The **4-layer fallback** is the core design idea: the bot prefers fresh real news, but if every source fails, it degrades gracefully through web search → AI-generated verified facts → curated backups. It is built so a single failure never produces a missed or broken post.
+
+---
 
 ## Daily Schedule (IST)
-- 8:00 AM → INDIA · INDIA & WORLD · GLOBAL
-- 1:00 PM → TECHNOLOGY · GK & FACTS · SCIENCE & SPACE
-- 6:00 PM → JOBS · CAREER · STUDY ABROAD
 
-## Stack
-| Part | Tool | Cost |
+| Time | Categories |
+|------|-----------|
+| 8:00 AM | INDIA · INDIA & WORLD · GLOBAL |
+| 1:00 PM | TECHNOLOGY · GK & FACTS · SCIENCE & SPACE |
+| 6:00 PM | JOBS · CAREER · STUDY ABROAD |
+
+---
+
+## Tech Stack
+
+| Layer | Tool | Cost |
 |---|---|---|
-| Scheduler | GitHub Actions | Free |
-| News primary | RSS (PIB, The Hindu, BBC...) | Free |
-| News fallback | Tavily API | Free (1000/mo) |
-| Unknown facts | Groq (Llama 3.3) | Free |
-| Rewrite + Verify | Claude Haiku 4.5 | $20 ≈ 7 months |
-| Slides | Puppeteer + HTML/CSS | Free |
+| Scheduler | GitHub Actions (cron) | Free |
+| News (primary) | RSS — PIB, The Hindu, BBC, ET, ISRO… | Free |
+| News (fallback) | Tavily API | Free (1000/mo) |
+| Unknown facts | Groq — Llama 3.3 70B | Free |
+| Rewrite + fact verification | Claude Haiku 4.5 | ~$20 ≈ 7 months |
+| Slide rendering | Puppeteer + HTML/CSS | Free |
 | Image hosting | Cloudinary | Free |
-| Posting | Instagram Graph API | Free |
-| Alerts | Telegram Bot | Free |
+| Publishing | Instagram Graph API | Free |
+| Alerts / observability | Telegram Bot | Free |
+
+**Total running cost: ~₹0/month** (only the Claude API is paid, and a Gemini swap makes it fully free).
+
+---
+
+## Engineering Rigor — production hardening
+
+After the first working version, I ran a full tester-style audit of the codebase (treating my own AI-assisted code as untrusted) and fixed **20+ edge-case bugs** before calling it production-ready. Highlights:
+
+- **Content safety** — AI sometimes returned refusal text ("Cannot create slide from…"). Added a refusal/mismatch detector so bad output falls back to verified facts instead of being posted as a real slide.
+- **HTML & Telegram injection** — news headlines containing `<`, `>`, `&` broke slide rendering and Telegram alerts. Added escaping across all user-content fields.
+- **Relevance filtering** — generic terms like "2026" were matching almost every article, letting off-topic news into the wrong category. Rewrote topic scoring (stop-words + minimum match threshold).
+- **Fault isolation** — one failed slide used to kill the entire post. Made rendering per-slide resilient so the carousel still publishes if ≥2 slides succeed.
+- **API resilience** — added retry with backoff, Instagram container-status polling, rate-limit handling, and a token-expiry early-warning alert via the Graph `debug_token` endpoint.
+- **Correctness** — fixed a misleading auto-generated source year, dependency/SDK version drift, and deprecated analytics metrics.
+
+This audit is documented commit-by-commit in the repo history.
+
+---
 
 ## Setup
 
-### 1. Keys needed
+### 1. Environment keys
 ```
-GROQ_API_KEY         → console.groq.com
-ANTHROPIC_API_KEY    → console.anthropic.com/settings/keys
-INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_ACCOUNT_ID
-CLOUDINARY_CLOUD_NAME + CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET
-PEXELS_API_KEY       → pexels.com/api
-TAVILY_API_KEY       → tavily.com
-TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID
+GROQ_API_KEY              → console.groq.com
+ANTHROPIC_API_KEY         → console.anthropic.com/settings/keys
+INSTAGRAM_ACCESS_TOKEN
+INSTAGRAM_ACCOUNT_ID
+CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
+PEXELS_API_KEY            → pexels.com/api
+TAVILY_API_KEY            → tavily.com
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
 ```
+
+Add these as **GitHub repository secrets** for the cloud run, or in a local `.env` (see `.env.example`) for testing.
 
 ### 2. Local test
 ```bash
 npm install
-npm run test:ig        # verify Instagram connects
-npm run post           # first real post
+npm run test:ig      # verify Instagram connection
+npm run test:slide   # render a sample slide
+npm run post         # generate + publish a real post
+npm run health       # health check (token, APIs, connectivity)
 ```
 
-### 3. Deploy to GitHub
-```bash
-git init && git add . && git commit -m "init"
-git remote add origin https://github.com/YOUR_USERNAME/unknownbhaarath.git
-git push -u origin main
+### 3. Deploy
+Push to `main`. GitHub Actions handles the rest on schedule — no infrastructure to manage.
+
+---
+
+## Project Structure
 ```
-Make repo **public**. Add all keys as GitHub Secrets (Settings → Secrets → Actions).
-
-### 4. Test workflow
-Actions → "Unknown Bhaarath Auto Post" → Run workflow → pick slot → Run.
-
-## Commands
-```
-npm test            # 8 unit tests
-npm run test:ig     # Instagram connection
-npm run test:slide  # preview slide design
-npm run health      # full system health check
-npm run post        # generate + post (uses SLOT env)
-npm run report      # weekly analytics → Telegram
+src/
+  index.js          # orchestrator — runs the full pipeline per slot
+  newsScraper.js    # RSS + relevance scoring
+  aiGenerator.js    # Groq + Claude content generation, verification, safety gate
+  slideTemplate.js  # HTML/CSS slide design (escaped, responsive font)
+  imageRenderer.js  # Puppeteer render, per-slide fault isolation
+  instagram.js      # Graph API publish, retry, token monitoring
+  cloudinary.js     # image upload
+  telegram.js       # phone alerts (escaped)
+  analytics.js      # post insights
+.github/workflows/  # cron schedules + health check
 ```
 
-## Maintenance
-- Instagram token: renew every 60 days (5 mins)
-- GitHub cron: re-enable after 60 days inactivity
-- Tavily: 1000 free searches/month (bot uses ~270/month)
+---
 
-## Troubleshooting
-- Instagram fails: try adding secret `IG_API_BASE=https://graph.facebook.com/v21.0`
-- Slides plain: check PEXELS_API_KEY is set
-- No Telegram: message your bot once first, verify TELEGRAM_CHAT_ID
+## Roadmap
+- [ ] Niche spin-off accounts (Technology + Science) on the same engine
+- [ ] Per-slide try/catch metrics dashboard
+- [ ] Auto A/B testing of hooks against engagement data
+
+---
+
+*Built and maintained by [Siddu (Bodavula Naga Venkata Siddardha)](https://github.com/bodavulasiddardha-png) — exploring agentic AI, automation, and data/business analytics.*
