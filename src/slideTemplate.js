@@ -8,7 +8,7 @@ function esc(text = '') {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
- 
+
 const CAT_COLORS = {
   'INDIA': '#FF9933',
   'INDIA & WORLD': '#4FC3F7',
@@ -23,9 +23,9 @@ const CAT_COLORS = {
   'STUDY ABROAD': '#4DD0E1',
   'CRICKET': '#00C853',
 };
- 
+
 const ICONS = ['🔢','📍','👤','📅'];
- 
+
 function ashoka(color, size=52) {
   let spokes = '';
   for (let i = 0; i < 24; i++) {
@@ -40,14 +40,14 @@ function ashoka(color, size=52) {
     ${spokes}
   </svg>`;
 }
- 
+
 export function buildSlideHTML(slide, index, total, bgUrl) {
   const accent = CAT_COLORS[slide.category] || '#FF9933';
- 
+
   const bgCSS = bgUrl
     ? `background-image:url('${bgUrl}');background-size:cover;background-position:center;`
     : `background:radial-gradient(circle at 30% 60%,${accent}18 0%,transparent 55%),#060B22;`;
- 
+
   // Headline with highlight — escaped to prevent HTML injection.
   const rawHeadline = String(slide.headline || '');
   let headlineHTML = esc(rawHeadline);
@@ -60,13 +60,13 @@ export function buildSlideHTML(slide, index, total, bgUrl) {
   // Dynamic font size: shrink for long headlines so text never overflows.
   const hlLen = rawHeadline.length;
   const headlineFont = hlLen > 38 ? 40 : hlLen > 28 ? 48 : 60;
- 
+
   // Category breadcrumb
   const catDisplay = esc((slide.category || '').replace(' & ', ' • '));
- 
+
   // Description: first full_fact or first fact
   const desc = esc((slide.full_facts?.[0]) || (slide.facts?.[0]) || '');
- 
+
   // Badge
   const badgeHTML = slide.stat ? `
     <div style="display:inline-flex;align-items:center;gap:12px;
@@ -75,7 +75,7 @@ export function buildSlideHTML(slide, index, total, bgUrl) {
       <span style="font-family:Sora;font-weight:800;font-size:26px;color:${accent};">${esc(slide.stat)}</span>
       <span style="font-size:18px;color:rgba(255,255,255,0.65);">${esc(slide.statLabel || '')}</span>
     </div>` : '';
- 
+
   // Right side stat cards (up to 4)
   const facts = slide.facts || [];
   const stats = slide.stats || [];
@@ -95,20 +95,20 @@ export function buildSlideHTML(slide, index, total, bgUrl) {
       </div>
     </div>`;
   }).join('');
- 
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800;900&family=Inter:wght@400;500&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{width:1080px;height:1080px;overflow:hidden;font-family:Inter,sans-serif;background:#060B22;}
 </style></head><body>
- 
+
 <div style="position:absolute;inset:0;${bgCSS}filter:brightness(0.35) saturate(0.6) contrast(1.1);"></div>
 <div style="position:absolute;inset:0;background:linear-gradient(110deg,rgba(4,8,24,0.97) 0%,rgba(4,8,24,0.82) 45%,rgba(4,8,24,0.65) 60%,rgba(4,8,24,0.90) 100%);"></div>
 <div style="position:absolute;top:-80px;right:-60px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,${accent}15 0%,transparent 70%);"></div>
 <div style="position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,transparent,${accent},transparent);"></div>
 <div style="position:absolute;top:-20px;right:-20px;opacity:0.05;">${ashoka(accent, 200)}</div>
- 
+
 <!-- TOP BAR -->
 <div style="position:absolute;top:0;left:0;right:0;height:76px;
 display:flex;align-items:center;justify-content:space-between;padding:0 52px;">
@@ -118,7 +118,7 @@ display:flex;align-items:center;justify-content:space-between;padding:0 52px;">
   </div>
   <div style="font-family:Sora;font-size:17px;color:rgba(255,255,255,0.3);font-weight:600;">${index+1} / ${total}</div>
 </div>
- 
+
 <!-- LEFT: 0→530px -->
 <div style="position:absolute;left:0;top:86px;width:526px;bottom:82px;
 padding:18px 36px 18px 52px;display:flex;flex-direction:column;justify-content:flex-start;">
@@ -128,16 +128,16 @@ padding:18px 36px 18px 52px;display:flex;flex-direction:column;justify-content:f
   <div style="font-size:20px;line-height:1.55;color:rgba(255,255,255,0.80);font-weight:400;">${desc}</div>
   ${badgeHTML}
 </div>
- 
+
 <!-- VERTICAL DIVIDER -->
 <div style="position:absolute;left:534px;top:96px;bottom:96px;width:1px;background:rgba(255,255,255,0.10);"></div>
- 
+
 <!-- RIGHT: 542px→end -->
 <div style="position:absolute;left:542px;right:0;top:82px;bottom:82px;
 padding:14px 36px 14px 26px;display:flex;flex-direction:column;justify-content:space-evenly;gap:8px;">
   ${cardsHTML}
 </div>
- 
+
 <!-- BOTTOM BAR -->
 <div style="position:absolute;bottom:0;left:0;right:0;height:78px;
 background:rgba(4,8,22,0.97);border-top:1px solid rgba(255,255,255,0.08);
@@ -150,13 +150,13 @@ display:flex;align-items:center;justify-content:space-between;padding:0 52px;">
     </div>
   </div>
   <div style="font-family:Sora;font-size:16px;font-weight:600;color:rgba(255,255,255,0.55);">
-    Source: <b style="color:#fff;">${esc(slide.source || 'Verified')}</b> • ${new Date().getFullYear()}
+    Source: <b style="color:#fff;">${esc(slide.source || 'Verified')}</b>${slide.year ? ' • ' + esc(slide.year) : ''}
   </div>
 </div>
- 
+
 </body></html>`;
 }
- 
+
 export function buildCaption(slides, slot) {
   const hashtagSets = {
     morning: '#IndiaNews #CurrentAffairs #GK #Bharat #TheUnknownBhaarath #UnknownBhaarath #IndiaFacts #DidYouKnow #India #Knowledge',
@@ -170,7 +170,7 @@ export function buildCaption(slides, slot) {
     details.forEach(f => { caption += `▪ ${f}\n`; });
     caption += '\n';
   });
-  caption += `Follow @unknownbhaarath for daily verified facts 🇮🇳\n\n`;
+  caption += `Follow @unknownbhaarath for daily India facts 🇮🇳\n\n`;
   caption += hashtagSets[slot] || hashtagSets.morning;
   return caption;
 }
