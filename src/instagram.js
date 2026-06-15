@@ -96,7 +96,7 @@ export async function postCarousel(imageUrls, caption) {
 
 export async function testConnection() {
   const res = await axios.get(`${BASE}/${ACCOUNT()}`, {
-    params: { fields: 'id,username,account_type,media_count', access_token: TOKEN() },
+    params: { fields: 'id,username,media_count', access_token: TOKEN() },
   });
   return res.data;
 }
