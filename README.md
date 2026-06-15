@@ -1,6 +1,6 @@
 # Unknown Bhaarath — Autonomous Instagram Facts Agent
 
-Daily 3 posts to @unknownbhaarath. Runs on GitHub Actions (cloud) — laptop off, phone alerts via Telegram. ~₹0 cost.(Claude API used here. Swap with Gemini API for $0.00 Cost)
+Daily 3 posts to @unknownbhaarath. Runs on GitHub Actions (cloud) — laptop off, phone alerts via Telegram. ~₹0 cost.
 
 ## Architecture
 ```
@@ -12,7 +12,7 @@ Per slide — 3-layer content:
   Layer 3: Groq (unknown fact) → Claude verify → Claude storytelling
   Layer 4: Hardcoded backup (last resort)
   ↓
-Puppeteer → Premium HTML/CSS slide (1080×1350)
+Puppeteer → Premium HTML/CSS slide (1080×1080)
   ↓
 Cloudinary → Image hosting
   ↓
