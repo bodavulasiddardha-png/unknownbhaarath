@@ -1,5 +1,5 @@
 import axios from 'axios';
- 
+
 // Escape HTML special chars so news headlines / errors containing
 // <, >, & do not break Telegram's HTML parse_mode.
 function escTg(text = '') {
@@ -8,7 +8,7 @@ function escTg(text = '') {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
- 
+
 export async function notify(message) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -26,7 +26,7 @@ export async function notify(message) {
     console.warn('[Telegram] failed:', e.message);
   }
 }
- 
+
 export async function notifySuccess(slot, slides, postId) {
   const topics = slides.map(s => {
     let tag = '';
@@ -46,7 +46,7 @@ export async function notifySuccess(slot, slides, postId) {
     `🇮🇳 @unknownbhaarath`
   );
 }
- 
+
 export async function notifyFailure(slot, error) {
   await notify(
     `❌ <b>Post Failed!</b>\n\n` +
