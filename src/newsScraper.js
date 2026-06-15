@@ -1,8 +1,8 @@
 import axios from 'axios';
 import Parser from 'rss-parser';
- 
+
 const parser = new Parser({ timeout: 10000 });
- 
+
 const RSS_SOURCES = {
   india: [
     'https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3',
@@ -36,8 +36,8 @@ const RSS_SOURCES = {
     'https://www.thehindu.com/sport/cricket/feeder/default.rss',
   ],
 };
- 
- 
+
+
 // ── Source quality guard ─────────────────────────────────
 // Low-quality blogs/coaching pages caused false salary/stat claims.
 // This whitelist keeps the bot on safer sources; if no source passes, the
@@ -54,27 +54,27 @@ const TRUSTED_DOMAINS = [
   'unesco.org', 'nasa.gov', 'sciencedaily.com', 'techcrunch.com', 'entrackr.com',
   'opendoorsdata.org', 'iie.org', 'ugc.gov.in', 'nta.ac.in'
 ];
- 
+
 const BLOCKED_DOMAINS = [
   'igmguru.com', 'civilskills.in', 'intinews', 'adda247.com', 'testbook.com',
   'jagranjosh.com', 'collegedunia.com', 'shiksha.com', 'careers360.com',
   'ambitionbox.com', 'glassdoor.co.in', 'simplilearn.com', 'upgrad.com',
   'greatlearning.in', 'geeksforgeeks.org'
 ];
- 
+
 function isTrustedSource(article = {}) {
   const host = hostFromUrl(article.link || article.url || '');
   const source = String(article.source || '').toLowerCase();
   const hay = `${host} ${source}`.toLowerCase();
- 
+
   if (BLOCKED_DOMAINS.some(d => hay.includes(d))) return false;
   return TRUSTED_DOMAINS.some(d => hay.includes(d));
 }
- 
+
 function filterTrusted(articles = []) {
   return articles.filter(isTrustedSource);
 }
- 
+
 const SLOT_CONFIG = {
   morning: [
     { topic: 'India government policy economy 2026', category: 'INDIA', tags: ['india'] },
@@ -92,27 +92,27 @@ const SLOT_CONFIG = {
     { topic: 'India study tips exams education 2026', category: 'STUDY', tags: ['education', 'india'] },
   ],
 };
- 
+
 // Check if text is primarily non-English (Hindi/regional)
 function isNonEnglish(text) {
   const nonEnglish = (text.match(/[^\x00-\x7F]/g) || []).length;
   return nonEnglish / Math.max(text.length, 1) > 0.3;
 }
- 
+
 // Words that should NOT count as topic matches (years, generic terms).
 // "2026" was matching almost every article, letting garbage through.
 const STOP_WORDS = new Set([
   '2024', '2025', '2026', '2027', 'india', 'indian', 'latest', 'news',
   'world', 'global', 'trends', 'today', 'update', 'updates'
 ]);
- 
+
 // Fetch up to 3 articles from RSS
 async function fetchFromRSS(tags, topic) {
   const topicWords = topic.toLowerCase().split(' ')
     .filter(w => w.length > 3 && !STOP_WORDS.has(w));
   const candidates = [];
   const seenTitles = new Set();
- 
+
   for (const tag of tags) {
     for (const url of (RSS_SOURCES[tag] || [])) {
       try {
@@ -121,11 +121,11 @@ async function fetchFromRSS(tags, topic) {
           const title = (item.title || '').trim();
           const snippet = item.contentSnippet || '';
           const titleKey = title.toLowerCase();
- 
+
           if (!title || seenTitles.has(titleKey)) continue;
           if (isNonEnglish(title + snippet)) continue;
           seenTitles.add(titleKey);
- 
+
           const text = (title + ' ' + snippet).toLowerCase();
           const score = topicWords.filter(w => text.includes(w)).length;
           // Require at least 2 meaningful topic words to match — prevents
@@ -143,16 +143,16 @@ async function fetchFromRSS(tags, topic) {
       } catch (e) { /* skip dead feed */ }
     }
   }
- 
+
   candidates.sort((a, b) => b.score - a.score);
   return filterTrusted(candidates).slice(0, 3); // top 3 trusted
 }
- 
+
 // Fetch up to 3 articles from Tavily
 function hostFromUrl(url = '') {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return 'Tavily'; }
 }
- 
+
 async function fetchFromTavily(topic) {
   if (!process.env.TAVILY_API_KEY) return [];
   try {
@@ -163,7 +163,7 @@ async function fetchFromTavily(topic) {
       max_results: 8,
       include_domains: TRUSTED_DOMAINS,
     }, { timeout: 12000 });
- 
+
     return filterTrusted((res.data.results || []).map(r => ({
       title: r.title || topic,
       content: (r.content || r.snippet || '').substring(0, 1200),
@@ -176,22 +176,22 @@ async function fetchFromTavily(topic) {
     return [];
   }
 }
- 
+
 export async function gatherSlotContent(slot) {
   const config = SLOT_CONFIG[slot] || SLOT_CONFIG.morning;
   const results = [];
- 
+
   for (const { topic, category, tags } of config) {
     console.log(`   Fetching: ${category}...`);
- 
+
     // RSS + Tavily parallel fetch → best-of-6
     const [rssArticles, tavilyArticles] = await Promise.all([
       fetchFromRSS(tags, topic),
       fetchFromTavily(topic),
     ]);
- 
+
     const all = [...rssArticles, ...tavilyArticles];
- 
+
     if (all.length > 0) {
       console.log(`   [${category}] ${rssArticles.length} RSS + ${tavilyArticles.length} Tavily = ${all.length} candidates`);
       results.push({ category, topic, articles: all, article: null });
@@ -200,6 +200,6 @@ export async function gatherSlotContent(slot) {
       results.push({ category, topic, articles: [], article: null });
     }
   }
- 
+
   return results;
 }
