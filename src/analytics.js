@@ -22,15 +22,19 @@ export async function getRecentPerformance(limit = 21) {
   }
 }
 
-// Fetch insights (reach, saves) for a single media item
+// Fetch insights (reach, saves) for a single media item.
+// Instagram renamed 'saved' → 'saves'; 'shares' is not always supported on
+// carousels. We request the safe metrics and tolerate partial failures.
 export async function getMediaInsights(mediaId) {
   try {
     const res = await axios.get(`${BASE}/${mediaId}/insights`, {
-      params: { metric: 'reach,saved,shares', access_token: TOKEN() },
+      params: { metric: 'reach,saves', access_token: TOKEN() },
       timeout: 10000,
     });
     const out = {};
     (res.data.data || []).forEach(m => { out[m.name] = m.values?.[0]?.value || 0; });
+    // Normalise so callers can read either name
+    if (out.saves == null && out.saved != null) out.saves = out.saved;
     return out;
   } catch (e) {
     return {};
@@ -64,7 +68,7 @@ export async function buildWeeklyReport() {
     const likes = m.like_count || 0;
     const comments = m.comments_count || 0;
     const reach = insights.reach || 0;
-    const saves = insights.saved || 0;
+    const saves = insights.saves || insights.saved || 0;
 
     totalLikes += likes; totalComments += comments;
     totalReach += reach; totalSaves += saves;
