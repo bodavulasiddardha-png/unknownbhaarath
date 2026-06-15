@@ -23,7 +23,9 @@ export async function renderSlide(slide, index, total) {
   const bgUrl = await getBackgroundUrl(slide.category);
 
   const html = buildSlideHTML(slide, index, total, bgUrl);
-  await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+  // domcontentloaded + fixed wait avoids hanging on slow Pexels background images
+  // (networkidle0 would wait for every image and could hit the 30s timeout).
+  await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await new Promise(r => setTimeout(r, 2500));
 
   const buffer = await page.screenshot({ type: 'jpeg', quality: 92 });
