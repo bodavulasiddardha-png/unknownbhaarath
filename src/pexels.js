@@ -9,8 +9,11 @@ const CAT_QUERY = {
   'GK & FACTS': 'india heritage monument',
   'SCIENCE & SPACE': 'galaxy space stars',
   'JOBS': 'city skyline office night',
+  'HYDERABAD JOBS': 'hyderabad city skyline tech',
   'CAREER': 'modern office workspace',
+  'STUDY': 'library books study desk',
   'STUDY ABROAD': 'university campus building',
+  'CRICKET': 'cricket stadium night',
 };
 
 // Returns a direct image URL for the category, or null
