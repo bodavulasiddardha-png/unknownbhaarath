@@ -1,11 +1,12 @@
 {
-  "updated": "2026-08-23T04:28:38.014Z",
+  "updated": "2026-08-30T09:36:27.006Z",
   "favored": [
-    "JOBS",
-    "SCIENCE"
+    "OTHER",
+    "TECHNOLOGY",
+    "JOBS"
   ],
   "weak": [
-    "SCIENCE",
-    "JOBS"
+    "JOBS",
+    "TECHNOLOGY"
   ]
 }
