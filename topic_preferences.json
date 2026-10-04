@@ -1,9 +1,11 @@
 {
-  "updated": "2026-09-27T09:40:34.995Z",
+  "updated": "2026-10-04T10:19:21.173Z",
   "favored": [
-    "TECHNOLOGY"
+    "TECHNOLOGY",
+    "OTHER"
   ],
   "weak": [
+    "OTHER",
     "TECHNOLOGY"
   ]
 }
